@@ -7,27 +7,24 @@ Screenshot available as process_file.png
 
 import streamlit as st
 import packaging
-from io import StringIO
 import json
+from io import StringIO
+from pathlib import Path
 
-st.title("Process File of Packages")
+st.title("Package File Processor")
 
-file = st.file_uploader("Upload package file:")
+def process_file(file):
+    text = StringIO(file.getvalue().decode("utf-8")).read().splitlines()
+    packages = [
+        (pkg := packaging.parse_packaging(line.strip())) and 
+        st.info(f"{line} ➡️ Total 📦 Size: {packaging.calc_total_units(pkg)} {packaging.get_unit(pkg)}") 
+        or pkg for line in text if line.strip()
+    ]
+    save_path = Path(f"./data/{file.name.replace('.txt', '.json')}")
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    save_path.write_text(json.dumps(packages, indent=4))
+    st.success(f"Processed {len(packages)} packages. Saved as {save_path.name} 📂")
 
-if file:
-    filename = file.name
-    json_filename = filename.replace(".txt",".json")
-    packages = []
-    text = StringIO(file.getvalue().decode("utf-8")).read()
-    for line in text.split("\n"):
-        line = line.strip()
-        pkg = packaging.parse_packaging(line)
-        total = packaging.calc_total_units(pkg)
-        unit = packaging.get_unit(pkg)
-        packages.append(pkg)
-        st.info(f"{line} ➡️ Total 📦 Size: {total} {unit}")
-    count = len(packages)
-    with open(f"./data/{json_filename}", "w") as f:
-        json.dump(packages, f, indent=4)
-    st.success(f"{count} packages written to {json_filename}", icon="💾")
+if (file := st.file_uploader("Upload your package file (TXT format)")):
+    process_file(file)
     
